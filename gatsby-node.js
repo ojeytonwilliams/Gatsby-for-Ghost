@@ -206,13 +206,13 @@ exports.createPages = ({ graphql, actions }) => {
 
                 const tagSlugToPosts = {}
 
+                tags.forEach(({ node: { slug } }) => {
+                    tagSlugToPosts[slug] = []
+                })
+
                 items.forEach((item) => {
                     item.node.tags.forEach((tag) => {
-                        if (tagSlugToPosts[tag.slug]) {
-                            tagSlugToPosts[tag.slug].push(item)
-                        } else {
-                            tagSlugToPosts[tag.slug] = [item]
-                        }
+                        tagSlugToPosts[tag.slug].push(item)
                     })
                 })
 
