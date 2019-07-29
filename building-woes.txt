@@ -1,0 +1,34 @@
+It's slow for large sites (where large is 12,000 posts and 6 tags).  Really slow.
+
+createPages took 20 minutes
+it then processes a bit under 7 page queries a second, but there are 17508 pages to query!  So that's another 41 minutes for
+the queries!
+
+Roughly an hour all told.
+
+Why so long?  Not sure.  My guess is that GraphQL isn't very efficient at filtering and grabs everything then trims it down.
+Since there are a lot of pages, this takes a long time.  Specifically, in tags we have
+
+allGhostPost(
+    sort: { order: DESC, fields: [published_at] },
+    filter: {tags: {elemMatch: {slug: {eq: $slug}}}},
+    limit: $limit,
+    skip: $skip
+)
+
+At least one of those operations (sort, filter or limit) may be slow.
+
+---
+
+One reason is that each tag creates pages /tag/<tagname> and /tag/<tagname>/page/<page> and those pages trigger GraphQL
+queries that pull out all the info on every post that is linked to on those pages.  i.e. the allGhostPost query above.
+
+This is *likely* to be stupendously slow if each time it does the following:
+
+1) get all posts
+2) filter out all post that don't have the right slug
+3) sort remaining posts (this might even come before step 2)
+4) return posts starting at skip, upto skip + limit
+
+What should it do differently?  Well, it would be better if getting and filtering each only happened once.  So, do that
+in 

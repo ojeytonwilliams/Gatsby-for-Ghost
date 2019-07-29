@@ -13,7 +13,7 @@ import { MetaData } from '../components/common/meta'
 */
 const Tag = ({ data, location, pageContext }) => {
     const tag = data.ghostTag
-    const posts = data.allGhostPost.edges
+    const posts = pageContext.posts
 
     return (
         <>
@@ -34,7 +34,7 @@ const Tag = ({ data, location, pageContext }) => {
                             <PostCard key={node.id} post={node} />
                         ))}
                     </section>
-                    <Pagination pageContext={pageContext} />
+                    <Pagination pageContext={pageContext.pagination} />
                 </div>
             </Layout>
         </>
@@ -58,21 +58,9 @@ Tag.propTypes = {
 export default Tag
 
 export const pageQuery = graphql`
-    query GhostTagQuery($slug: String!, $limit: Int!, $skip: Int!) {
+    query GhostTagQuery($slug: String!) {
         ghostTag(slug: { eq: $slug }) {
             ...GhostTagFields
-        }
-        allGhostPost(
-            sort: { order: DESC, fields: [published_at] },
-            filter: {tags: {elemMatch: {slug: {eq: $slug}}}},
-            limit: $limit,
-            skip: $skip
-        ) {
-            edges {
-                node {
-                ...GhostPostFields
-                }
-            }
         }
     }
 `

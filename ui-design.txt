@@ -1,0 +1,4 @@
+Currently FCC news is a bit opaque regarding tags.  Clearly each post can have multiple
+tags, but you only see one (above the post).
+
+First let's try and replicate that behaviour (or something close)

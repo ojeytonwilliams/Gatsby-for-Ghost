@@ -1,0 +1,11 @@
+It's difficult to pin down where, precisely, it fails, because there are 52 selects in the query (I'M SURE THAT'S OPTIMAL)
+and the ones I've tried seem fine.
+
+Possible options remaining:
+
+1) Take the general log, extract all the queries and run them - both separately and sequentially.
+  See what (if anything) fails.
+
+2) Just re-write the Gatsby plugin to make smaller requests and queue up any changes
+
+3) Wait for someone *else* to do that and work on the front end!

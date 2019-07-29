@@ -12,6 +12,9 @@ exports.createPages = ({ graphql, actions }) => {
     /**
     * Posts
     */
+
+    // TODO: might be faster to get allGhostPost once by merging createPosts with createTags.  However, it's not
+    // likely to be a big performance gain.
     const createPosts = new Promise((resolve, reject) => {
         const postTemplate = path.resolve(`./src/templates/post.js`)
         const indexTemplate = path.resolve(`./src/templates/index.js`)
@@ -83,14 +86,106 @@ exports.createPages = ({ graphql, actions }) => {
         resolve(
             graphql(`
                 {
-                    allGhostTag(
-                        sort: {order: ASC, fields: name}
+
+                    allGhostTag(sort: {order: ASC, fields: name})
+                        {
+                            edges {
+                                node {
+                                    slug
+                                    url
+                                    postCount
+                                    }
+                                }
+                        }
+
+                    allGhostPost(
+                        sort: {order: ASC, fields: published_at}
                     ) {
                         edges {
                             node {
+                                # Main fields
+        id
+        title
+        slug
+        featured
+        feature_image
+        excerpt
+        custom_excerpt
+
+        # Dates formatted
+        created_at_pretty: created_at(formatString: "DD MMMM, YYYY")
+        published_at_pretty: published_at(formatString: "DD MMMM, YYYY")
+        updated_at_pretty: updated_at(formatString: "DD MMMM, YYYY")
+
+        # Dates unformatted
+        created_at
+        published_at
+        updated_at
+
+        # SEO
+        meta_title
+        meta_description
+        og_description
+        og_image
+        og_title
+        twitter_description
+        twitter_image
+        twitter_title
+
+        # Authors
+        authors {
+            name
+            slug
+            bio
+            # email
+            profile_image
+            twitter
+            facebook
+            website
+        }
+        primary_author {
+            name
                                 slug
-                                url
-                                postCount
+            bio
+            # email
+            profile_image
+            twitter
+            facebook
+            website
+        }
+
+        # Tags
+        primary_tag {
+            name
+            slug
+            description
+            feature_image
+            meta_description
+            meta_title
+            visibility
+        }
+        tags {
+            name
+            slug
+            description
+            feature_image
+            meta_description
+            meta_title
+            visibility
+        }
+
+        # Content
+        plaintext
+        html
+
+        # Additional fields
+        url
+        uuid
+        page
+        codeinjection_foot
+        codeinjection_head
+        codeinjection_styles
+        comment_id
                             }
                         }
                     }
@@ -100,14 +195,28 @@ exports.createPages = ({ graphql, actions }) => {
                     return reject(result.errors)
                 }
 
-                if (!result.data.allGhostTag) {
+                if (!result.data.allGhostPost || !result.data.allGhostTag) {
                     return resolve()
                 }
 
-                const items = result.data.allGhostTag.edges
+                const items = result.data.allGhostPost.edges
+                const tags = result.data.allGhostTag.edges
                 const postsPerPage = config.postsPerPage
 
-                items.forEach(({ node }) => {
+
+                const tagSlugToPosts = {}
+
+                items.forEach((item) => {
+                    item.node.tags.forEach((tag) => {
+                        if (tagSlugToPosts[tag.slug]) {
+                            tagSlugToPosts[tag.slug].push(item)
+                        } else {
+                            tagSlugToPosts[tag.slug] = [item]
+                        }
+                    })
+                })
+
+                tags.forEach(({ node }) => {
                     const totalPosts = node.postCount !== null ? node.postCount : 0
                     const numberOfPages = Math.ceil(totalPosts / postsPerPage)
 
@@ -121,6 +230,10 @@ exports.createPages = ({ graphql, actions }) => {
                         const nextPageNumber = currentPage + 1 > numberOfPages ? null : currentPage + 1
                         const previousPagePath = prevPageNumber ? prevPageNumber === 1 ? node.url : `${node.url}page/${prevPageNumber}/` : null
                         const nextPagePath = nextPageNumber ? `${node.url}page/${nextPageNumber}/` : null
+                        const skip = i * postsPerPage
+                        const limit = postsPerPage
+
+                        const posts = tagSlugToPosts[node.slug].slice(skip, skip + limit);
 
                         createPage({
                             path: i === 0 ? node.url : `${node.url}page/${i + 1}/`,
@@ -129,19 +242,22 @@ exports.createPages = ({ graphql, actions }) => {
                                 // Data passed to context is available
                                 // in page queries as GraphQL variables.
                                 slug: node.slug,
-                                limit: postsPerPage,
-                                skip: i * postsPerPage,
-                                numberOfPages: numberOfPages,
-                                humanPageNumber: currentPage,
-                                prevPageNumber: prevPageNumber,
-                                nextPageNumber: nextPageNumber,
-                                previousPagePath: previousPagePath,
-                                nextPagePath: nextPagePath,
+                                pagination: {
+                                    slug: node.slug,
+                                    limit,
+                                    skip,
+                                    numberOfPages: numberOfPages,
+                                    humanPageNumber: currentPage,
+                                    prevPageNumber: prevPageNumber,
+                                    nextPageNumber: nextPageNumber,
+                                    previousPagePath: previousPagePath,
+                                    nextPagePath: nextPagePath,
+                                },
+                                posts,
                             },
                         })
                     })
                 })
-
                 return resolve()
             })
         )
@@ -269,5 +385,5 @@ exports.createPages = ({ graphql, actions }) => {
         )
     })
 
-    return Promise.all([createPosts, createTags, createAuthors, createPages])
+    return Promise.all([createPosts, createTags, createAuthors, createPages]).then(() => console.log('FINISHED CREATING EVERYTHING'))
 }
